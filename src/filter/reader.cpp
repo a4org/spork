@@ -13,6 +13,8 @@
 
 #include "../spork.hpp"
 
+namespace spork {
+
 std::ifstream Reader::gets() {
   std::ifstream infile;
   infile.exceptions(std::ifstream::badbit);
@@ -20,8 +22,18 @@ std::ifstream Reader::gets() {
   try {
     infile.open(this->fileName);
   } catch (const std::ifstream::failure& e) {
-    std::cout << "Exception opening/reading file" << std::endl;
+    std::cerr << "Exception opening/reading file" << std::endl;
   }
+
+#ifdef DEBUG
+  int ct = 0; std::string line;
+  while (getline(infile, line)) ct++;
+  std::cout << "Reader finished! Found " << ct << " lines of data"<< '\n';
+  infile.clear();
+  infile.seekg(0);
+#endif
 
   return infile;
 }
+
+} // namespace spork

@@ -29,25 +29,26 @@
 #include <fstream>
 #include <iostream>
 
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_for.h"
-#include "tbb/task_scheduler_init.h"
-
-
+#define DEBUG 1
+#define DWT 1
 #define DWLB 10000
 #define DWUB 29999
+#define CBBCT 2
 #define CBBCLB 50000
 #define CBBCUB 69999
+#define VI std::vector<int>
 #define VS std::vector<std::string>
 #define VLLS std::vector<std::pair<long long, security>> 
 
 using ll = long long;
 
+namespace spork {
+
 struct security {
   std:: string date;
   std::string code;
   bool ad; // T: add, F: delete
-  ll orderId;
+  std::string orderId;
   bool bidask; // T: bid, F: ask
   double price;
   ll quantity;
@@ -82,20 +83,27 @@ class Reader {
 
 class Filter {
   public:
-    Filter(std::ifstream &infile, VS types) { // ref
+    Filter(std::ifstream infile) {
       this->securities = {};
       this->dws = {}; this->cbbcs = {};
-      this->types = types;
 
       std::string line;
       while (getline(infile, line)) {
-	filtering(line);
+	this->filtering(line);
       }
+
+#ifdef DEBUG
+      std::cout << "Filter Init Finished!" << "\n" <<
+	"Found " << this->dws.size() << " lines of Derivative Warrants."
+	<< "\nFound " << this->cbbcs.size() << " lines of CBBC." << "\n";
+#endif
+
       infile.close();
     };
 
+    void parsing(int type);
+
   private:
-    VS types;
     VS dws;
     VS cbbcs;
     VLLS securities;
@@ -114,7 +122,8 @@ class Filter {
   };
 
   protected:
+    void pperform(std::string line);
     void filtering(std::string line);
-    void parsingLine(std::string line);
 };
 
+} // namespace spork
