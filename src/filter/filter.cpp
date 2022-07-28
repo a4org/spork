@@ -80,10 +80,15 @@ void Filter::pperform(std::string line) {
   s.date = tmpstored[0];
   s.code = tmpstored[1];
   s.ad = (tmpstored[2] == "A") ? true : false;
+
+  if (!s.ad) {
+    this->deletect++;
+  }
+
   s.orderId = tmpstored[3];
   s.bidask = (tmpstored[4] == "0") ? true : false;
-  s.price = tmpstored[5] == "" ? -1 : std::stod(tmpstored[5]);
-  s.quantity = tmpstored[6] == "" ? -1 : std::stoll(tmpstored[6]);
+  s.price = (tmpstored[5] == "") ? -1 : std::stod(tmpstored[5]);
+  s.quantity = (tmpstored[6] == "") ? -1 : std::stoll(tmpstored[6]);
 
 #ifdef DEBUG
   std::cout << "date: " << s.date << ", code: " << s.code << ", ad: " << s.ad

@@ -23,13 +23,16 @@
 
 #pragma once
 
+#include <set>
+#include <queue>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <functional>
 
-#define DEBUG 1 
+#define DEBUG
 #define DWT 1
 #define DWLB 10000
 #define DWUB 29999
@@ -38,14 +41,17 @@
 #define CBBCUB 69999
 #define VI std::vector<int>
 #define VS std::vector<std::string>
+#define VSE std::vector<security*>
 #define VLLS std::vector<std::pair<long long, security>> 
+#define BPQ std::priority_queue<BA*, std::vector<BA*>, decltype(&bidcmp)>
+#define APQ std::priority_queue<BA*, std::vector<BA*>, decltype(&askcmp)>
 
 using ll = long long;
 
 namespace spork {
 
 struct security {
-  std:: string date;
+  std::string date;
   std::string code;
   bool ad; // T: add, F: delete
   std::string orderId;
@@ -126,6 +132,8 @@ class Filter {
       infile.close();
     };
 
+    int deletect;
+
     void parsing(int type);
 
     VLLS getOutput() {
@@ -157,8 +165,58 @@ class Filter {
 
 } // namespace filter
 
-namespace process {
+namespace function {
 
-} // namespace process
+// highest bid, lowest ask
+struct BA {
+  std::string code;
+  bool ad; // T: add, F: delete
+  std::string orderId;
+  double price;
+  ll quantity;
+};
+
+static bool bidcmp(BA* leftb, BA* rightb) { return leftb->price > rightb->price; }
+static bool askcmp(BA* lefta, BA* righta) { return lefta->price < righta->price; }
+
+
+class BidAskProcessor {
+  public:
+    BidAskProcessor(VSE securities) {
+      this->securities = securities;
+      this->bidheap = {}; this->askheap = {};
+      this->preprocessing(this->bidheap, this->askheap);
+    }
+
+  protected:
+    void preprocessing(BPQ bpq, APQ apq) {
+      for (security* sp : securities) {
+	BA ba;
+	if (sp->bidask == true) {
+	  this->setval(&ba, sp);
+	  bpq.push(&ba);
+	} else {
+	  this->setval(&ba, sp);
+	  apq.push(&ba);
+	}
+      }
+    }
+
+  private:
+    BPQ bidheap;
+    BPQ askheap;
+    VSE securities;
+    std::set<std::string> deleted; // all deleted securities' code
+
+    void setval(BA* ba, security* se) {
+      ba->price = se->price;
+      ba->code = se->code;
+      ba->ad = se->ad;
+      ba->orderId = se->orderId;
+      ba->quantity = se->quantity;
+    }
+};
+
+} // namespace function
 
 } // namespace spork
