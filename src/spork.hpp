@@ -55,9 +55,12 @@ struct security {
 };
 
 //
-// filter/reader.cpp
+// io/reader.cpp
 //
 //
+//
+
+namespace io {
 
 class Reader {
   public:
@@ -77,9 +80,13 @@ class Reader {
     std::string fileName;
 };
 
+} // namespace io
+
 //
 // filter/filter.cpp
 //
+
+namespace filter {
 
 class Filter {
   public:
@@ -125,5 +132,7 @@ class Filter {
     void pperform(std::string line);
     void filtering(std::string line);
 };
+
+} // namespace filter
 
 } // namespace spork

@@ -3,7 +3,7 @@
 //
 // reader
 //
-// Identification: src/filter/reader.cpp
+// Identification: src/io/reader.cpp
 //
 // Last Modified : 2022.7.28 Jiawei Wang
 //
@@ -14,6 +14,7 @@
 #include "../spork.hpp"
 
 namespace spork {
+namespace io {
 
 std::ifstream Reader::gets() {
   std::ifstream infile;
@@ -36,4 +37,5 @@ std::ifstream Reader::gets() {
   return infile;
 }
 
+} // namespace io
 } // namespace spork

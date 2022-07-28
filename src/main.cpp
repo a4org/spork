@@ -3,8 +3,8 @@
 int main(int argc, char** argv) {
   std::string filename = argv[1];
 
-  spork::Reader* reader = new spork::Reader(filename);
-  spork::Filter* filter = new spork::Filter(reader->gets());
+  spork::io::Reader* reader = new spork::io::Reader(filename);
+  spork::filter::Filter* filter = new spork::filter::Filter(reader->gets());
 
   filter->parsing(DWT); 
   filter->parsing(CBBCT);

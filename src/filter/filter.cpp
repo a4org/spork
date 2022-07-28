@@ -14,6 +14,7 @@
 #include "../spork.hpp"
 
 namespace spork {
+namespace filter {
 
 void Filter::filtering(std::string line) {
 
@@ -95,4 +96,5 @@ void Filter::pperform(std::string line) {
   this->securities.push_back({daten, s});
 }
 
+} // namespace filter
 } // namespace spork
