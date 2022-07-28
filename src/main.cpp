@@ -7,8 +7,12 @@ int main(int argc, char** argv) {
   spork::io::Reader* reader = new spork::io::Reader(filename);
   spork::filter::Filter* filter = new spork::filter::Filter(reader->gets());
 
-  filter->parsing(DWT); 
+  filter->deletect = 0;
+
+  // filter->parsing(DWT); 
   filter->parsing(CBBCT);
+
+  std::cout << filter->deletect << std::endl;
 
   spork::io::Writer* writer = new spork::io::Writer(filter->getOutput());
   writer->wSingleCSV(outname);
