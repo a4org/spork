@@ -54,7 +54,7 @@ void Filter::parsing(int type) {
   }
 }
 
-// execution unit 20140401094559859,64209,A,2582549,1,0.157,200000, void Filter::pperform(std::string line) {
+// execution unit 20140401094559859,64209,A,2582549,1,0.157,200000,
 void Filter::pperform(std::string line) {
   security s;
 

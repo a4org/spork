@@ -29,7 +29,7 @@
 #include <fstream>
 #include <iostream>
 
-#define DEBUG 1
+#define DEBUG 1 
 #define DWT 1
 #define DWLB 10000
 #define DWUB 29999
@@ -54,13 +54,12 @@ struct security {
   ll quantity;
 };
 
+
+namespace io {
+
 //
 // io/reader.cpp
 //
-//
-//
-
-namespace io {
 
 class Reader {
   public:
@@ -78,6 +77,25 @@ class Reader {
   private:
     VS fileNames;
     std::string fileName;
+};
+
+//
+// io/writer.cpp
+//
+
+class Writer {
+  public:
+    Writer(VLLS data) : idata(data) {};
+
+    /**
+     * Write to a single CSV file
+     */
+    void wSingleCSV(std::string wfilename);
+  protected:
+    std::string csvline(security s);
+
+  private:
+    VLLS idata;
 };
 
 } // namespace io
@@ -110,6 +128,10 @@ class Filter {
 
     void parsing(int type);
 
+    VLLS getOutput() {
+      return this->securities;
+    }
+
   private:
     VS dws;
     VS cbbcs;
@@ -134,5 +156,9 @@ class Filter {
 };
 
 } // namespace filter
+
+namespace process {
+
+} // namespace process
 
 } // namespace spork
