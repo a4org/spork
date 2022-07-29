@@ -18,6 +18,7 @@ writer.o: io/writer.cpp spork.hpp
 
 .PHONY: clear
 # clean all output data
+clear:
 	rm -rf *.csv
 	rm -rf *.txt
 

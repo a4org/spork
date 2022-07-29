@@ -24,10 +24,8 @@ int main(int argc, char** argv) {
 
   int ct = 0;
   for (auto p : filter->getOutput()) {
-    // std::cout << p.second.code << std::endl;
     securities.push_back(p.second);
   }
-  std::cout << ct << std::endl;
 
   spork::function::BidAskProcessor* BAP = new spork::function::BidAskProcessor(securities);
   
@@ -65,6 +63,7 @@ int main(int argc, char** argv) {
 
   for (auto p : filterout) {
     if (p.second.code == "67858") {
+      // test only care about single sec
       singleout.push_back(p);
     }
   }
@@ -76,10 +75,11 @@ int main(int argc, char** argv) {
 
   int ct = 0;
   for (auto p : singleout) {
-    // std::cout << p.second.code << std::endl;
+    ct++;
     securities.push_back(p.second);
   }
-  std::cout << ct << std::endl;
+
+  std::cout << "# of securities: " << ct << std::endl;
 
   spork::function::BidAskProcessor* BAP = new spork::function::BidAskProcessor(securities);
   

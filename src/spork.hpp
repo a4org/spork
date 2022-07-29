@@ -34,7 +34,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define DEBUG 1
+#define NODEBUG 1
 #define DWT 1
 #define DWLB 10000
 #define DWUB 29999
@@ -249,7 +249,7 @@ class BidAskProcessor {
     void performUpdate(C& abpq, double& bap, ll& baq, std::string& baid, MSD& msdba);
 
     template<typename C>
-    void performDelete(C& abpq, std::string code, std::string orderId, MSD& msdba);
+    void performDelete(C* abpq, std::string code, std::string orderId, MSD& msdba);
 
     void heapInsert(MPBA& mpba, BA ba, bool bidask);
     void heapDelete(MSD& msdb, MSD& msda, BA ba, bool bidask, MPBA& mpba);
