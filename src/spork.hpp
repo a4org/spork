@@ -31,8 +31,10 @@
 #include <fstream>
 #include <iostream>
 #include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
-#define DEBUG
+#define DEBUG 1
 #define DWT 1
 #define DWLB 10000
 #define DWUB 29999
@@ -41,10 +43,12 @@
 #define CBBCUB 69999
 #define VI std::vector<int>
 #define VS std::vector<std::string>
-#define VSE std::vector<security*>
+#define VSE std::vector<security>
 #define VLLS std::vector<std::pair<long long, security>> 
-#define BPQ std::priority_queue<BA*, std::vector<BA*>, decltype(&bidcmp)>
-#define APQ std::priority_queue<BA*, std::vector<BA*>, decltype(&askcmp)>
+#define BPQ std::priority_queue<BA, std::vector<BA>, bidcmp>
+#define APQ std::priority_queue<BA, std::vector<BA>, askcmp>
+#define MPBA std::unordered_map<std::string, std::pair<BPQ, APQ>>
+#define MSD std::unordered_set<std::string>
 
 using ll = long long;
 
@@ -60,6 +64,16 @@ struct security {
   ll quantity;
 };
 
+struct Output {
+  std::string date;
+  std::string code;
+  std::string askid;
+  std::string bidid;
+  double askprice;
+  double bidprice;
+  ll askquantity;
+  ll bidquantity;
+};
 
 namespace io {
 
@@ -91,17 +105,20 @@ class Reader {
 
 class Writer {
   public:
-    Writer(VLLS data) : idata(data) {};
+    Writer(VLLS data) : idata(data) { this->out = {}; };
+    Writer(std::vector<spork::Output> out) : out(out) { this->idata = {}; };
 
     /**
      * Write to a single CSV file
      */
     void wSingleCSV(std::string wfilename);
-  protected:
-    std::string csvline(security s);
 
+  protected:
+    std::string sec2csv(security& s);
+    std::string out2csv(Output& s);
   private:
     VLLS idata;
+    std::vector<spork::Output> out;  
 };
 
 } // namespace io
@@ -153,7 +170,6 @@ class Filter {
     }
     size_t _n;
   };
-
   template <typename T> struct invoker {
     void operator()(T& it) const {it();}
   };
@@ -176,45 +192,67 @@ struct BA {
   ll quantity;
 };
 
-static bool bidcmp(BA* leftb, BA* rightb) { return leftb->price > rightb->price; }
-static bool askcmp(BA* lefta, BA* righta) { return lefta->price < righta->price; }
+struct bidcmp {
+  bool operator()(BA const& leftb, BA const& rightb) {
+    return leftb.price > rightb.price;
+  }
+};
+
+struct askcmp {
+  bool operator()(BA const& lefta, BA const& righta) {
+    return lefta.price < righta.price;
+  }
+};
 
 
 class BidAskProcessor {
   public:
     BidAskProcessor(VSE securities) {
       this->securities = securities;
-      this->bidheap = {}; this->askheap = {};
-      this->preprocessing(this->bidheap, this->askheap);
+      this->mapheaps = {};
+      this->deletedbid = {};
+      this->deletedask = {};
+    }
+    std::vector<Output> start();
+
+    void test() {
+      // for debug
+      BA debugba;
+      BPQ debugbpq = {};
+      for (auto s : this->securities) {
+	sec2ba(debugba, s);
+	debugbpq.push(debugba);
+      }
+
     }
 
   protected:
-    void preprocessing(BPQ bpq, APQ apq) {
-      for (security* sp : securities) {
-	BA ba;
-	if (sp->bidask == true) {
-	  this->setval(&ba, sp);
-	  bpq.push(&ba);
-	} else {
-	  this->setval(&ba, sp);
-	  apq.push(&ba);
-	}
-      }
-    }
+    void perform(VSE& secs, std::vector<Output>& ret, MPBA& mpba, MSD& db, MSD& da);
 
   private:
-    BPQ bidheap;
-    BPQ askheap;
+    std::unordered_map<std::string, std::pair<BPQ, APQ>> mapheaps;
+    std::unordered_set<std::string> deletedask;
+    std::unordered_set<std::string> deletedbid;
     VSE securities;
-    std::set<std::string> deleted; // all deleted securities' code
 
-    void setval(BA* ba, security* se) {
-      ba->price = se->price;
-      ba->code = se->code;
-      ba->ad = se->ad;
-      ba->orderId = se->orderId;
-      ba->quantity = se->quantity;
+    void sec2ba(BA &ba, security &se) {
+      ba.price = se.price;
+      ba.code = se.code;
+      ba.ad = se.ad; ba.orderId = se.orderId; ba.quantity = se.quantity;
     }
+
+    std::string getTime(security* sec) {
+      return sec->date;
+    }
+
+    template<typename C>
+    void performUpdate(C& abpq, double& bap, ll& baq, std::string& baid, MSD& msdba);
+
+    template<typename C>
+    void performDelete(C& abpq, std::string code, std::string orderId, MSD& msdba);
+
+    void heapInsert(MPBA& mpba, BA ba, bool bidask);
+    void heapDelete(MSD& msdb, MSD& msda, BA ba, bool bidask, MPBA& mpba);
 };
 
 } // namespace function
