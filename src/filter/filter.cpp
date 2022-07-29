@@ -90,7 +90,7 @@ void Filter::pperform(std::string line) {
   s.price = (tmpstored[5] == "") ? -1 : std::stod(tmpstored[5]);
   s.quantity = (tmpstored[6] == "") ? -1 : std::stoll(tmpstored[6]);
 
-#ifdef DEBUG
+#ifdef NODEBUG
   std::cout << "date: " << s.date << ", code: " << s.code << ", ad: " << s.ad
     << ", orderId: " << s.orderId << ", bidask: " <<  s.bidask
     << ", price: " << s.price << ", quantity: " << s.quantity << '\n';

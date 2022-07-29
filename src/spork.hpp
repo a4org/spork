@@ -194,13 +194,13 @@ struct BA {
 
 struct bidcmp {
   bool operator()(BA const& leftb, BA const& rightb) {
-    return leftb.price > rightb.price;
+    return leftb.price < rightb.price;
   }
 };
 
 struct askcmp {
   bool operator()(BA const& lefta, BA const& righta) {
-    return lefta.price < righta.price;
+    return lefta.price > righta.price;
   }
 };
 

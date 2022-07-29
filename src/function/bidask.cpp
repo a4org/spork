@@ -69,10 +69,6 @@ void BidAskProcessor::perform
   }
 
 
-#ifdef DEBUG
-  std::cout << "First round finished!" << std::endl;
-#endif
-
 
   //
   // Second round, for each unique trans, output its state 
@@ -91,9 +87,6 @@ void BidAskProcessor::perform
     APQ apq = mapheap[code].second;
     performUpdate<APQ>(apq, askp, askq, askid, delask);
 
-#ifdef DEBUG
-  std::cout << "Got Value!" << std::endl;
-#endif
 
     // #3 Assign values to ret
     ret.date = date; ret.code = code;
@@ -109,9 +102,6 @@ void BidAskProcessor::perform
 void BidAskProcessor::heapInsert(MPBA &mpba, BA ba, bool bidask) { // add
   std::string code = ba.code;
   std::pair<BPQ, APQ>& rheap = mpba[code];
-#ifdef DEBUG
-    std::cout << "Insert: " << ba.price << '\n';
-#endif
   if (bidask) {
     rheap.first.push(ba);
   } else {
@@ -124,10 +114,10 @@ void BidAskProcessor::heapDelete(MSD& msdb, MSD& msda, BA ba, bool bidask, MPBA&
   std::string orderId = ba.orderId;
   
   if (bidask) {
-    BPQ bpq = mpba[code].first;
+    BPQ& bpq = mpba[code].first;
     performDelete<BPQ>(bpq, code, orderId, msdb);
   } else {
-    APQ apq = mpba[code].second;
+    APQ& apq = mpba[code].second;
     performDelete<APQ>(apq, code, orderId, msda);
   }
 }
@@ -141,6 +131,10 @@ void BidAskProcessor::performUpdate(C& abpq, double& bap, ll& baq, std::string& 
   } else {
     while (!abpq.empty()) {
       BA ba = abpq.top();
+#ifdef DEBUG
+    if (ba.orderId == "216787")
+      std::cout << "find 216787!" << std::endl;
+#endif
       auto it = msdba.find(ba.orderId);
       if (it != msdba.end()) {
 	msdba.erase(it);
@@ -165,6 +159,10 @@ void BidAskProcessor::performDelete(C& abpq, std::string code, std::string order
   if (orderId == abpq.top().orderId) {
     // fast way, don't bother record it, just delete it
     abpq.pop();
+#ifdef DEBUG
+    if (orderId == "216787")
+      std::cout << "pop 216787, now top() is: " << abpq.top().orderId << std::endl;
+#endif
   } else {
     // record it, hash every time
     msdba.insert(orderId);

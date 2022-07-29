@@ -16,12 +16,16 @@ reader.o: io/reader.cpp spork.hpp
 writer.o: io/writer.cpp spork.hpp
 	g++ -std=c++17 -c io/writer.cpp -O1 -o writer.o -ltbb
 
+.PHONY: clear
+# clean all output data
+	rm -rf *.csv
+	rm -rf *.txt
+
 .PHONY: clean
-# clean all output file
+# clean all output program
 clean:
 	rm -rf spork
 	rm -f *.o
-	rm -rf *.csv
 
 
 .PHONY: test spork
