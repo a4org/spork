@@ -31,4 +31,4 @@ clean:
 
 .PHONY: test spork
 test:
-	./spork ../sample/20140401/MC32_All_20140401.csv MC32_20140401.csv BidAsk_MC32_20140401_CBBC.csv
+	./spork ../sample/20140401/MC33_All_20140401.csv MC33_20140401.csv BidAsk_MC33_20140401_DW.csv

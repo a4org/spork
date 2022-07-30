@@ -12,8 +12,8 @@ int main(int argc, char** argv) {
 
   filter->deletect = 0;
 
-  // filter->parsing(DWT); 
-  filter->parsing(CBBCT);
+  filter->parsing(DWT); 
+  // filter->parsing(CBBCT);
 
   std::cout << filter->deletect << std::endl;
 
