@@ -61,6 +61,7 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
 
   printf("sqlite created table successfully\n");
   *rc = ret;
+  sqlite3_close(db);
 }
 
 void cleanqs() {
@@ -80,6 +81,55 @@ void cleanqs() {
   qs.shares = -1;
 
   qs.valid = false;
+}
+
+string quotes(string value) {
+  return "'" + value + "',";
+}
+
+/* Perform inserting accorting to the current qs */
+void sqlinsert(sqlite3* db, string dbname) {
+  int ret; ret = sqlite3_open_v2(dbname.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX | SQLITE_OPEN_SHAREDCACHE, NULL);
+  if (ret) {
+    error("sqlite cannot open database: %s", dbname.c_str());
+  }
+  if (!qs.valid) return;
+
+  char sql[1000];
+  snprintf(sql, sizeof(sql), "INSERT INTO QUOTATIONS VALUES ('%s',%lld,%lld,'%s','%s',%f,%f,%f,%f,%f,%f,%lld,%lld);"
+                            ,qs.id.c_str(), qs.date,
+			     qs.code, qs.name.c_str(), qs.currency.c_str(), qs.pc, 
+			     qs.closing, qs.bid, qs.ask,
+			     qs.high, qs.low, qs.turnover, qs.shares);
+
+  string ssql = "INSERT INTO QUOTATIONS VALUES (" + quotes(qs.id) + to_string(qs.date) + ',' + to_string(qs.code) + ',' + quotes(qs.name) + quotes(qs.currency) + to_string(qs.pc) + ',' + to_string(qs.closing) + ',' + to_string(qs.bid) + ',' + to_string(qs.ask) + ',' + to_string(qs.high) + ',' + to_string(qs.low) + ',' + to_string(qs.turnover) + ',' + to_string(qs.shares) + ");"; 
+
+  const char* csql = ssql.c_str();
+  // const char* csql = sql;
+
+  printf("%s\n", csql);
+
+  // cout << csql << endl;
+
+  sqlite3_stmt* stmt;
+  int retcode = sqlite3_prepare(db, csql, -1, &stmt, NULL);
+
+  if (retcode != SQLITE_OK) {
+    printf("%s\n", sqlite3_errmsg(db));
+    error("sqlite syntax error, on inserting, error code: %d.", retcode);
+  }
+
+  while ((retcode = sqlite3_step(stmt)) == SQLITE_ROW) {
+    continue;
+  }
+
+  if (retcode != SQLITE_DONE) {
+    printf("%s\n", sqlite3_errmsg(db));
+    error("sqlite execution error, on inserting, error code: %d.", retcode);
+  }
+
+  printf("sqlite finish inserting\n");
+  sqlite3_close(db);
 }
 
 void skipspace(string& strline, int& index) {
@@ -145,12 +195,14 @@ string getnext(string& strline, int& index) {
     char curr = strline[index];
     if (curr == ' ') {
       if (onespace) {
+	ret = ret.substr(0, ret.size()-1); // remove the last space
 	break;
       }
       onespace = true;
       ret += curr;
     } else {
       onespace = false;
+      if (curr == '\'') curr = ' ';
       ret += curr;
     }
     index++;
@@ -263,18 +315,21 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
   cout << "raw TURNOVER: " << property << endl;
   double turnover = parselong(property);
   qs.turnover = turnover;
+
+  qs.valid = true;
 }
 
 /* Only deal with valid file 
  * without creating any intermediate representation (file)
  * just scan the file line by line
  * */ 
-void parse(const char* filename, sqlite3* db) {
+void parse(const char* filename, string dbname) {
   FILE* fp;
   char* line = NULL;
   size_t len = 0;
   ssize_t readl;
   string retbuf = "";
+  sqlite3* db;
 
   bool instatus = false;
 
@@ -296,7 +351,8 @@ void parse(const char* filename, sqlite3* db) {
       if (strline.find(SUSPENDED) == string::npos && strline.find(HALTED) == string::npos) {
 	cleanqs();
 	parseline(strline, &line, "20200204", &fp);
-	pprintq();
+	pprintq(); // just for debugging
+	sqlinsert(db, dbname);
       }
     } else if (strline.find(START) != string::npos) {
       /* we've found the start symbol, set the state */
@@ -316,8 +372,8 @@ int main(int argc, char** argv) {
   char* errmsg = 0;
   int rc;
 
-  // create("sample.db", db, &rc, errmsg);
+  create("sample.db", db, &rc, errmsg);
 
   /* do not loop the dir, just directly use the dates generated */
-  parse("./sample/good.html", db);
+  parse("./sample/good.html", "sample.db");
 }
