@@ -45,15 +45,24 @@ struct quotation {
   bool valid; // whether we need to insert it into db
   int type;   // DW(1) or CBBC(2)
 
-  /* DWs 1*/
   string issuer; // e.g, HS
   string asset;  // e.g, PINAN
-  string e;        // e.g, European
+
+  /* DWs 1*/
+  string e;      // e.g, European
   string cp;     // e.g, C
+  /* DWs 1*/
+
   int expyear;   // e.g, 20
   int expmonth;  // e.g, 8
-  string serial;   // e.g, F
+  string serial; // e.g, F
   bool rmb;      // e.g, * -> true
+
+  /* CBBCs 2 */
+  int residual;
+  string bb; // bull / bear
+  /* CBBCs 2 */
 };
+
 
 void error(char* fmt, ...);

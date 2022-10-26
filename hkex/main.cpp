@@ -56,7 +56,7 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
   "SHARE STRADED       INT);";
   */
 
-  string ssqldw = "CREATE TABLE DWS("  \
+  string ssqldw = "CREATE TABLE DWS ("  \
   "ID      CHAR(14)    PRIMARY KEY     NOT NULL," \
   "DATE                INT     NOT NULL," \
   "CODE                INT     NOT NULL," \
@@ -95,6 +95,45 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
     error("sqlite execution error, on creating table, error code: %d.", ret);
   }
 
+  string ssqlcbbc = "CREATE TABLE CBBCS ("  \
+  "ID      CHAR(14)    PRIMARY KEY     NOT NULL," \
+  "DATE                INT     NOT NULL," \
+  "CODE                INT     NOT NULL," \
+  "NAME                TEXT    NOT NULL," \
+  "CURRENCY            TEXT    NOT NULL," \
+  "PRV CLO             REAL," \
+  "CLOSING             REAL," \
+  "BID                 REAL," \
+  "ASK                 REAL," \
+  "HIGH                REAL," \
+  "LOW                 REAL," \
+  "TURNOVER            INT," \
+  "SHARESTRADED        INT," \
+  "ISSUER              TEXT   NOT NULL," \
+  "ASSET               TEXT   NOT NULL," \
+  "RESIDUAL            INT    NOT NULL," \
+  "Bear Bull           TEXT   NOT NULL," \
+  "EXPYEAR             INT    NOT NULL," \
+  "EXPMONTH            INT    NOT NULL," \
+  "SERIAL              TEXT   NOT NULL);"; \
+
+  const char* sqlcbbc = ssqlcbbc.c_str();
+
+  ret = sqlite3_prepare_v2(db, sqlcbbc, -1, &stmt, NULL);
+
+  if (ret != SQLITE_OK) {
+    printf("%s", sqlite3_errmsg(db));
+    error("sqlite syntax error, on creating table, error code: %d.", ret);
+  }
+
+  while ((ret = sqlite3_step(stmt)) == SQLITE_ROW) {
+    continue;
+  }
+
+  if (ret != SQLITE_DONE) {
+    error("sqlite execution error, on creating table, error code: %d.", ret);
+  }
+
   printf("sqlite created table successfully\n");
   *rc = ret;
   sqlite3_close(db);
@@ -116,6 +155,8 @@ void cleanqs() {
   qs.turnover = -1;
   qs.shares = -1;
 
+  qs.type = 0;
+
   qs.valid = false;
 }
 
@@ -132,22 +173,28 @@ void sqlinsert(sqlite3* db, string dbname) {
   if (!qs.valid) return;
 
   char sql[1000];
-  snprintf(sql, sizeof(sql), "INSERT INTO DWS VALUES ('%s',%lld,%lld,'%s','%s',%f,%f,%f,%f,%f,%f,%lld,%lld,'%s','%s','%s','%s',%d,%d,'%s');"
-                            ,qs.id.c_str(), qs.date,
-			     qs.code, qs.name.c_str(), qs.currency.c_str(), qs.pc, 
-			     qs.closing, qs.bid, qs.ask,
-			     qs.high, qs.low, qs.turnover, qs.shares,
-			     qs.issuer.c_str(), qs.asset.c_str(), qs.e.c_str(), 
-			     qs.cp.c_str(), qs.expyear, qs.expmonth, qs.serial.c_str());
+  if (qs.type == DW) {
+    snprintf(sql, sizeof(sql), "INSERT INTO DWS VALUES ('%s',%lld,%lld,'%s','%s',%f,%f,%f,%f,%f,%f,%lld,%lld,'%s','%s','%s','%s',%d,%d,'%s');"
+			      ,qs.id.c_str(), qs.date,
+			       qs.code, qs.name.c_str(), qs.currency.c_str(), qs.pc, 
+			       qs.closing, qs.bid, qs.ask,
+			       qs.high, qs.low, qs.turnover, qs.shares,
+			       qs.issuer.c_str(), qs.asset.c_str(), qs.e.c_str(), 
+			       qs.cp.c_str(), qs.expyear, qs.expmonth, qs.serial.c_str());
+  } else if (qs.type == CBBC) {
+    snprintf(sql, sizeof(sql), "INSERT INTO CBBCS VALUES ('%s',%lld,%lld,'%s','%s',%f,%f,%f,%f,%f,%f,%lld,%lld,'%s','%s',%d,'%s',%d,%d,'%s');"
+			      ,qs.id.c_str(), qs.date,
+			       qs.code, qs.name.c_str(), qs.currency.c_str(), qs.pc, 
+			       qs.closing, qs.bid, qs.ask,
+			       qs.high, qs.low, qs.turnover, qs.shares,
+			       qs.issuer.c_str(), qs.asset.c_str(), qs.residual, 
+			       qs.bb.c_str(), qs.expyear, qs.expmonth, qs.serial.c_str());
 
-  // string ssql = "INSERT INTO QUOTATIONS VALUES (" + quotes(qs.id) + to_string(qs.date) + ',' + to_string(qs.code) + ',' + quotes(qs.name) + quotes(qs.currency) + to_string(qs.pc) + ',' + to_string(qs.closing) + ',' + to_string(qs.bid) + ',' + to_string(qs.ask) + ',' + to_string(qs.high) + ',' + to_string(qs.low) + ',' + to_string(qs.turnover) + ',' + to_string(qs.shares) + ");"; 
+  }
 
-  // const char* csql = ssql.c_str();
   const char* csql = sql;
 
   printf("%s\n", csql);
-
-  // cout << csql << endl;
 
   sqlite3_stmt* stmt;
   int retcode = sqlite3_prepare(db, csql, -1, &stmt, NULL);
@@ -307,6 +354,67 @@ void parsedwst(string firstp, string& issuer, string& asset) {
 #endif
 }
 
+string rmspace(string s) {
+  int i = 0, j = s.size()-1;
+  while (s[i] == ' ' && i < s.size()) {
+    i++;
+  }
+  int p = 0;
+  while (s[j] == ' ' && j >= 0) {
+    p++;
+    j--;
+  }
+  if (i >= j) return "";
+  return s.substr(i, s.size()-i-p);
+}
+
+/* Parse the name of CBBCs
+ * it has 2 formats:
+ * 1. ZZ#QQQQQNCYYMMA
+ * 2. ZZ#QQQQNCYYMMA (rmb)
+ * */
+void parsecbbc(string name) {
+  qs.type = CBBC;
+  string issuer;
+  string asset;
+  int residual;
+  string bb; // bull / bear
+  int expyear;
+  int expmonth;
+  string serial;
+  if (name.size() == 15) {
+    qs.rmb = false;
+    issuer = name.substr(0, 2);
+    asset = rmspace(name.substr(3, 5));
+    residual = (name[8] == 'N') ? 0 : 1;
+    bb = (name[9] == 'C') ? "Bull" : "Bear";
+    expyear = parseint(name.substr(10, 2));
+    expmonth = parseint(name.substr(12, 2));
+    serial = name[name.size()-1];
+  } else if (name.size() == 14) {
+    /* rmb */
+    qs.rmb = true;
+    issuer = name.substr(0, 2);
+    asset = rmspace(name.substr(3, 4));
+    residual = (name[7] == 'N') ? 0 : 1;
+    bb = (name[8] == 'C') ? "Bull" : "Bear";
+    expyear = parseint(name.substr(9, 2));
+    expmonth = parseint(name.substr(11, 2));
+    serial = name[name.size()-1];
+  } else {
+    error("Unsupported CBBC name: %s.", name.c_str());
+  }
+
+  /* set the value */
+  qs.issuer = issuer;
+  qs.asset = asset;
+  qs.residual = residual;
+  qs.bb = bb;
+  qs.expyear = expyear;
+  qs.expmonth = expmonth;
+  qs.serial = serial;
+}
+
 /* Parse the name of DWs 
  * basically, it has 3 formats:
  * 1. ZZQQQQQ@ECYYMMA
@@ -383,6 +491,27 @@ string getnext(string& strline, int& index) {
   return ret;
 }
 
+
+string getname(string& strline, int& index) {
+  string ret = "";
+  skipspace(strline, index);
+  if (index + 2 < strline.size() && strline[index+2] == '#') {
+    /* is a cbbc */
+    if (index + 14 < strline.size() && strline[index+14] == '*') {
+      /* rmb */
+      ret = strline.substr(index, 14);
+      index += 15;
+      return ret;
+    } else {
+      ret = strline.substr(index, 15);
+      index += 15;
+      return ret;
+    }
+  } else {
+    return getnext(strline, index);
+  }
+}
+
 /* Parsing the given line, and check whether we need the 2nd line
  * and fill the parsing output into qs
  * */
@@ -417,8 +546,10 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
   ll code = parselong(property);
   qs.code = code;
 
-  /* 4. NAME: TEXT CKH HOLDINGS */
-  string name = getnext(strline, index);
+  /* 4. NAME: TEXT CKH HOLDINGS 
+   * This is special in CBBC: which has two columns */
+  // string name = getnext(strline, index);
+  string name = getname(strline, index);
 #ifdef DEBUG
   cout << "raw NAME: " << name << endl;
 #endif
@@ -431,6 +562,7 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
    * CBBC: # */
   if (name.find('#') != string::npos) {
     /* CBBC */
+    parsecbbc(name);
   } else if (name.find('@') != string::npos) {
     /* DWs */
     parsedw(name);
@@ -584,8 +716,8 @@ int main(int argc, char** argv) {
   char* errmsg = 0;
   int rc;
 
-  create("dws.db", db, &rc, errmsg);
+  create("sample.db", db, &rc, errmsg);
 
   /* do not loop the dir, just directly use the dates generated */
-  parse("./sample/good.html", "dws.db");
+  parse("./sample/good.html", "sample.db");
 }
