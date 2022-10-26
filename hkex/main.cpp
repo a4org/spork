@@ -11,6 +11,18 @@ void error(const char* fmt, ...) {
   exit(1);
 }
 
+int date(int month) {
+  switch(month) {
+    case 1: case 3: case 5: case 7:
+    case 8: case 10: case 12:
+      return 31;
+    case 2:
+      return 28;
+    default:
+      return 30;
+  }
+}
+
 void pprintq() {
   printf("%s, %lld, %lld, %s, %s, %f, %f, %f, %f, %f, %f, %lld, %lld \n",
          qs.id.c_str(), qs.date, qs.code, qs.name.c_str(), qs.currency.c_str(),
@@ -27,6 +39,7 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
   }
   printf("sqlite opened database successfully\n");
 
+  /*
   string ssql = "CREATE TABLE QUOTATIONS("  \
   "ID      CHAR(14)    PRIMARY KEY     NOT NULL," \
   "DATE                INT     NOT NULL," \
@@ -41,10 +54,33 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
   "LOW                 REAL," \
   "TURNOVER            INT," \
   "SHARE STRADED       INT);";
+  */
 
-  const char* sql = ssql.c_str();
+  string ssqldw = "CREATE TABLE DWS("  \
+  "ID      CHAR(14)    PRIMARY KEY     NOT NULL," \
+  "DATE                INT     NOT NULL," \
+  "CODE                INT     NOT NULL," \
+  "NAME                TEXT    NOT NULL," \
+  "CURRENCY            TEXT    NOT NULL," \
+  "PRV CLO             REAL," \
+  "CLOSING             REAL," \
+  "BID                 REAL," \
+  "ASK                 REAL," \
+  "HIGH                REAL," \
+  "LOW                 REAL," \
+  "TURNOVER            INT," \
+  "SHARESTRADED        INT," \
+  "ISSUER              TEXT   NOT NULL," \
+  "ASSET               TEXT   NOT NULL," \
+  "E                   TEXT   NOT NULL," \
+  "CP                  TEXT   NOT NULL," \
+  "EXPYEAR             INT    NOT NULL," \
+  "EXPMONTH            INT    NOT NULL," \
+  "SERIAL              TEXT   NOT NULL);"; \
 
-  ret = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+  const char* sqldw = ssqldw.c_str();
+
+  ret = sqlite3_prepare_v2(db, sqldw, -1, &stmt, NULL);
 
   if (ret != SQLITE_OK) {
     printf("%s", sqlite3_errmsg(db));
@@ -96,16 +132,18 @@ void sqlinsert(sqlite3* db, string dbname) {
   if (!qs.valid) return;
 
   char sql[1000];
-  snprintf(sql, sizeof(sql), "INSERT INTO QUOTATIONS VALUES ('%s',%lld,%lld,'%s','%s',%f,%f,%f,%f,%f,%f,%lld,%lld);"
+  snprintf(sql, sizeof(sql), "INSERT INTO DWS VALUES ('%s',%lld,%lld,'%s','%s',%f,%f,%f,%f,%f,%f,%lld,%lld,'%s','%s','%s','%s',%d,%d,'%s');"
                             ,qs.id.c_str(), qs.date,
 			     qs.code, qs.name.c_str(), qs.currency.c_str(), qs.pc, 
 			     qs.closing, qs.bid, qs.ask,
-			     qs.high, qs.low, qs.turnover, qs.shares);
+			     qs.high, qs.low, qs.turnover, qs.shares,
+			     qs.issuer.c_str(), qs.asset.c_str(), qs.e.c_str(), 
+			     qs.cp.c_str(), qs.expyear, qs.expmonth, qs.serial.c_str());
 
-  string ssql = "INSERT INTO QUOTATIONS VALUES (" + quotes(qs.id) + to_string(qs.date) + ',' + to_string(qs.code) + ',' + quotes(qs.name) + quotes(qs.currency) + to_string(qs.pc) + ',' + to_string(qs.closing) + ',' + to_string(qs.bid) + ',' + to_string(qs.ask) + ',' + to_string(qs.high) + ',' + to_string(qs.low) + ',' + to_string(qs.turnover) + ',' + to_string(qs.shares) + ");"; 
+  // string ssql = "INSERT INTO QUOTATIONS VALUES (" + quotes(qs.id) + to_string(qs.date) + ',' + to_string(qs.code) + ',' + quotes(qs.name) + quotes(qs.currency) + to_string(qs.pc) + ',' + to_string(qs.closing) + ',' + to_string(qs.bid) + ',' + to_string(qs.ask) + ',' + to_string(qs.high) + ',' + to_string(qs.low) + ',' + to_string(qs.turnover) + ',' + to_string(qs.shares) + ");"; 
 
-  const char* csql = ssql.c_str();
-  // const char* csql = sql;
+  // const char* csql = ssql.c_str();
+  const char* csql = sql;
 
   printf("%s\n", csql);
 
@@ -172,7 +210,141 @@ int parseint(string sint) {
   if (!isdigit(sint[0])) {
     return -1;
   }
-  return stoi(rmdot(sint));
+  int i = 0;
+  while (sint[i] == '0' && i < sint.size()) {
+    i++;
+  }
+
+  if (i == sint.size()) {
+    // all zero
+    return 0;
+  }
+
+  return stoi(rmdot(sint.substr(i, sint.size()-i)));
+}
+
+void parsedwnd(string secondp, string& e, string& cp,
+               int& expyear, int& expmonth, string& serial) {
+  if (secondp[0] == 'L') {
+    /* Inline Warrants (ignore now) */
+    qs.valid = false;
+    qs.type = 0;
+    return;
+  }
+
+  /* 1. parse E */
+  switch(secondp[0]) {
+  case ' ':
+    e = "American";
+    break;
+  case 'E':
+    e = "European";
+    break;
+  case 'R':
+    e = "Regional";
+    break;
+  case 'X':
+    e = "Exotic";
+    break;
+  default:
+    error("Invalid E: %c.", secondp[0]);
+  }
+
+#ifdef DEBUG
+  printf("DW E: %s", e.c_str());
+#endif
+
+  /* 2. parse Call/Put */
+  switch(secondp[1]) {
+  case ' ':
+    cp = "Non C/P";
+    break;
+  case 'C': case 'P':
+    cp = secondp[1];
+    break;
+  default:
+    error("Invalid C/P: %c.", secondp[1]);
+  }
+
+#ifdef DEBUG
+  printf("DW C/P: %s", cp.c_str());
+#endif
+
+  /* 3. parse expriation year and month */
+  expyear = parseint(secondp.substr(2, 2));
+
+#ifdef DEBUG
+  printf("DW EXP YEAR: %d", expyear);
+#endif
+
+  expmonth = parseint(secondp.substr(4, 2));
+
+#ifdef DEBUG
+  printf("DW EXP MONTH: %d", expmonth);
+#endif
+
+  /* 4. parse serial number */
+  serial = secondp[secondp.size()-1];
+#ifdef DEBUG
+  printf("DW SERIAL: %s", serial.c_str());
+#endif
+}
+
+void parsedwst(string firstp, string& issuer, string& asset) {
+  issuer = firstp.substr(0, 2);
+
+#ifdef DEBUG
+  printf("DW ISSUER: %s", issuer.c_str());
+#endif
+  asset = "";
+  for (int i = 2; i < firstp.size(); i++) {
+    if (firstp[i] == ' ' || firstp[i] == '-') continue; // skip
+    asset += firstp[i];
+  }
+
+#ifdef DEBUG
+  printf("DW ASSET: %s", asset.c_str());
+#endif
+}
+
+/* Parse the name of DWs 
+ * basically, it has 3 formats:
+ * 1. ZZQQQQQ@ECYYMMA
+ * 2. ZZ-QQQQ@ECYYMMA
+ * 3. ZZQQQQ@ECYYMMA* (rmb)
+ * */
+void parsedw(string name) {
+  qs.type = DW;
+  if (name.size() != 15) { return; }
+  string issuer;
+  string asset;
+  string e;
+  string cp;
+  int expyear;
+  int expmonth;
+  string serial;
+  if (name.find('@') == 6) {
+    qs.rmb = true;
+    /* parse the first part */
+    parsedwst(name.substr(0, 6), issuer, asset);
+    parsedwnd(name.substr(7, 7), e, cp, expyear, expmonth, serial);
+  } else if (name.find('@') == 7) {
+    qs.rmb = false;
+    /* parse the first part */
+    parsedwst(name.substr(0, 7), issuer, asset);
+    parsedwnd(name.substr(8, 7), e, cp, expyear, expmonth, serial);
+  } else {
+    error("Unsupported dw format: %s.", name.c_str());
+  }
+
+  /* set the value */
+  qs.issuer = issuer;
+  qs.asset = asset;
+  qs.e = e;
+  qs.cp = cp;
+  qs.expyear = expyear;
+  qs.expmonth = expmonth;
+  qs.serial = serial;
 }
 
 string getcode(string& strline, int& index) {
@@ -201,8 +373,9 @@ string getnext(string& strline, int& index) {
       onespace = true;
       ret += curr;
     } else {
-      onespace = false;
+      if (curr == '&') index+=4; // &amp;
       if (curr == '\'') curr = ' ';
+      onespace = false;
       ret += curr;
     }
     index++;
@@ -230,7 +403,9 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
   
   /* 1. ID: CHAR<14> 20200204000001*/
   property = getcode(strline, index);
+#ifdef DEBUG
   cout << "raw CODE: " << property << endl;
+#endif
   string id = getid(dates, property);
   qs.id = id;
 
@@ -244,41 +419,68 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
 
   /* 4. NAME: TEXT CKH HOLDINGS */
   string name = getnext(strline, index);
+#ifdef DEBUG
   cout << "raw NAME: " << name << endl;
+#endif
   qs.name = name;
+
+  /* Extra Step, perform name extracting and only set it valid
+   * (means insert it into db)
+   * Indicators:
+   * DW: @
+   * CBBC: # */
+  if (name.find('#') != string::npos) {
+    /* CBBC */
+  } else if (name.find('@') != string::npos) {
+    /* DWs */
+    parsedw(name);
+  }
 
   /* 5. CURRENCY TEXT HKD */
   string currency = getnext(strline, index);
-  cout << "raw CURRENCY: " << property << endl;
+#ifdef DEBUG
+  cout << "raw CURRENCY: " << currency << endl;
+#endif
   qs.currency = currency;
 
   /* 6. PRV CLO REAL 68.45 */
   property = getnext(strline, index);
+#ifdef DEBUG
   cout << "raw PRV CLO: " << property << endl;
+#endif
   double pc = parsedouble(property);
   qs.pc = pc;
 
   /* 7. ASK REAL 68.60 */
   property = getnext(strline, index);
+#ifdef DEBUG
   cout << "raw ASK: " << property << endl;
+#endif
   double ask = parsedouble(property);
   qs.ask = ask;
 
   /* 8. HIGH REAL 69.15 */
   property = getnext(strline, index);
+#ifdef DEBUG
   cout << "raw HIGH: " << property << endl;
+#endif
   double high = parsedouble(property);
   qs.high = high;
 
   /* 9. SHARES TRADED INT(ll) 5403104 */
   property = getnext(strline, index);
+#ifdef DEBUG
   cout << "raw SHARES: " << property << endl;
+#endif
   double shares = parselong(property);
   qs.shares = shares; 
 
   char* remain; size_t len;
   /* Get the next line */
   getline(line, &len, *fp);
+
+  if (qs.type != DW && qs.type != CBBC) return;
+
   string strremain(*line);
 
   index = 0;
@@ -294,29 +496,37 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
 
   /* 10. CLOSING REAL 68.50 */
   property = getnext(strremain, index);
+#ifdef DEBUG
   cout << "raw CLOSING: " << property << endl;
+#endif
   double closing = parsedouble(property);
   qs.closing = closing;
 
   /* 11. BID REAL 68.50 */
   property = getnext(strremain, index);
+#ifdef DEBUG
   cout << "raw BID: " << property << endl;
+#endif
   double bid = parsedouble(property);
   qs.bid = bid;
 
   /* 12. LOW REAL 68.50 */
   property = getnext(strremain, index);
+#ifdef DEBUG
   cout << "raw LOW: " << property << endl;
+#endif
   double low = parsedouble(property);
   qs.low = low;
 
   /* 13. TURNOVER INT(ll) 371147633 */
   property = getnext(strremain, index);
+#ifdef DEBUG
   cout << "raw TURNOVER: " << property << endl;
+#endif
   double turnover = parselong(property);
   qs.turnover = turnover;
 
-  qs.valid = true;
+  qs.valid = true; // parsing over, no error report
 }
 
 /* Only deal with valid file 
@@ -351,7 +561,9 @@ void parse(const char* filename, string dbname) {
       if (strline.find(SUSPENDED) == string::npos && strline.find(HALTED) == string::npos) {
 	cleanqs();
 	parseline(strline, &line, "20200204", &fp);
+#ifdef DEBUG
 	pprintq(); // just for debugging
+#endif
 	sqlinsert(db, dbname);
       }
     } else if (strline.find(START) != string::npos) {
@@ -372,8 +584,8 @@ int main(int argc, char** argv) {
   char* errmsg = 0;
   int rc;
 
-  create("sample.db", db, &rc, errmsg);
+  create("dws.db", db, &rc, errmsg);
 
   /* do not loop the dir, just directly use the dates generated */
-  parse("./sample/good.html", "sample.db");
+  parse("./sample/good.html", "dws.db");
 }
