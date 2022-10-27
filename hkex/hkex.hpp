@@ -69,4 +69,4 @@ struct quotation {
 
 void error(char* fmt, ...);
 
-void parse(const char* filename, string dbname);
+void parse(const char* filename, string dbname, string date);

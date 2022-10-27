@@ -25,6 +25,7 @@ int gendate(int month) {
 
 /* call parse fn over and over again */
 void iterateYear(string year, int start, int end, string dbname) {
+  string date = "";
   string filename = "";
   if (start > end) return;
   for (int i = start; i <= end; i++) {
@@ -39,8 +40,9 @@ void iterateYear(string year, int start, int end, string dbname) {
       if (sdate.size() == 1) {
 	sdate = '0' + sdate;
       }
-      filename = FILES + smonth + sdate + SUFFIX;
-      parse(filename.c_str(), dbname);
+      filename = FILES + year + smonth + sdate + SUFFIX;
+      date = "20" + year + smonth + sdate;
+      parse(filename.c_str(), dbname, date);
     }
 
   }
@@ -61,7 +63,7 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
   if (ret) {
     error("sqlite cannot open database: %s", dbname);
   }
-  printf("sqlite opened database successfully\n");
+  // printf("sqlite opened database successfully\n");
 
   /*
   string ssql = "CREATE TABLE QUOTATIONS("  \
@@ -158,7 +160,7 @@ void create(const char* dbname, sqlite3* db, int* rc, char* errmsg) {
     error("sqlite execution error, on creating table, error code: %d.", ret);
   }
 
-  printf("sqlite created table successfully\n");
+  // printf("sqlite created table successfully\n");
   *rc = ret;
   sqlite3_close(db);
 }
@@ -213,12 +215,11 @@ void sqlinsert(sqlite3* db, string dbname) {
 			       qs.high, qs.low, qs.turnover, qs.shares,
 			       qs.issuer.c_str(), qs.asset.c_str(), qs.residual, 
 			       qs.bb.c_str(), qs.expyear, qs.expmonth, qs.serial.c_str());
-
   }
 
   const char* csql = sql;
 
-  printf("%s\n", csql);
+  // printf("%s\n", csql);
 
   sqlite3_stmt* stmt;
   int retcode = sqlite3_prepare(db, csql, -1, &stmt, NULL);
@@ -237,7 +238,7 @@ void sqlinsert(sqlite3* db, string dbname) {
     error("sqlite execution error, on inserting, error code: %d.", retcode);
   }
 
-  printf("sqlite finish inserting\n");
+  // printf("sqlite finish inserting\n");
   sqlite3_close(db);
 }
 
@@ -689,7 +690,7 @@ void parseline(string& strline, char** line, string dates, FILE** fp) {
  * without creating any intermediate representation (file)
  * just scan the file line by line
  * */ 
-void parse(const char* filename, string dbname) {
+void parse(const char* filename, string dbname, string date) {
   FILE* fp;
   char* line = NULL;
   size_t len = 0;
@@ -716,7 +717,7 @@ void parse(const char* filename, string dbname) {
       /* otherwise: parse this line */
       if (strline.find(SUSPENDED) == string::npos && strline.find(HALTED) == string::npos) {
 	cleanqs();
-	parseline(strline, &line, "20200204", &fp);
+	parseline(strline, &line, date, &fp);
 #ifdef DEBUG
 	pprintq(); // just for debugging
 #endif
@@ -743,13 +744,14 @@ int main(int argc, char** argv) {
   char* errmsg = 0;
   int rc;
 
-  // create(dbname.c_str(), db, &rc, errmsg);
+  create(dbname.c_str(), db, &rc, errmsg);
 
   /* do not loop the dir, just directly use the dates generated */
   iterateYear("19", 5, 12, dbname);
   iterateYear("20", 1, 12, dbname);
   iterateYear("21", 1, 12, dbname);
   iterateYear("22", 1, 8, dbname);
+
   // parse("./sample/good.html", "sample.db");
   // parse("./sample/empty.html", "sample.db");
 }
