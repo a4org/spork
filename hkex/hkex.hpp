@@ -21,6 +21,8 @@
 #define HALTED "TRADING HALTED"
 #define DW 1
 #define CBBC 2
+#define FILES "files/"
+#define SUFFIX ".html"
 
 using namespace::std;
 
@@ -66,3 +68,5 @@ struct quotation {
 
 
 void error(char* fmt, ...);
+
+void parse(const char* filename, string dbname);

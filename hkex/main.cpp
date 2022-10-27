@@ -11,7 +11,7 @@ void error(const char* fmt, ...) {
   exit(1);
 }
 
-int date(int month) {
+int gendate(int month) {
   switch(month) {
     case 1: case 3: case 5: case 7:
     case 8: case 10: case 12:
@@ -21,6 +21,30 @@ int date(int month) {
     default:
       return 30;
   }
+}
+
+/* call parse fn over and over again */
+void iterateYear(string year, int start, int end, string dbname) {
+  string filename = "";
+  if (start > end) return;
+  for (int i = start; i <= end; i++) {
+    int ndate = gendate(i);
+    string smonth = to_string(i);
+    if (smonth.size() == 1) {
+      smonth = '0' + smonth;
+    }
+
+    for (int j = 1; j <= ndate; j++) {
+      string sdate = to_string(j);
+      if (sdate.size() == 1) {
+	sdate = '0' + sdate;
+      }
+      filename = FILES + smonth + sdate + SUFFIX;
+      parse(filename.c_str(), dbname);
+    }
+
+  }
+
 }
 
 void pprintq() {
@@ -710,14 +734,22 @@ int main(int argc, char** argv) {
   if (argc != 3) {
     error("Usage: ./main <DIR> <DB>");
   }
+
+  string dirname = argv[1];
+  string dbname = argv[2];
   
   /* creating the db, as well as the table */
   sqlite3* db;
   char* errmsg = 0;
   int rc;
 
-  create("sample.db", db, &rc, errmsg);
+  // create(dbname.c_str(), db, &rc, errmsg);
 
   /* do not loop the dir, just directly use the dates generated */
-  parse("./sample/good.html", "sample.db");
+  iterateYear("19", 5, 12, dbname);
+  iterateYear("20", 1, 12, dbname);
+  iterateYear("21", 1, 12, dbname);
+  iterateYear("22", 1, 8, dbname);
+  // parse("./sample/good.html", "sample.db");
+  // parse("./sample/empty.html", "sample.db");
 }
